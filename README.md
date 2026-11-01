@@ -13,7 +13,7 @@ On choisit le modèle dans la barre latérale.
 | Modèle | Type | Données | Algorithme | Cible prédite |
 |---|---|---|---|---|
 | 📱 État d'un téléphone | Classification | `CLASSIFICATION/Telephone_data.csv` | Random Forest | `etat` : D'occasion, Neuf, Réconditionné, Venant |
-| 🚙 Provenance d'une voiture (devoir) | Classification | `CLASSIFICATION/DEVOIR/Car_Data (1).csv` | Decision Tree | `Venant_Occasion` : Venant, D'occasion |
+| 🚙 Provenance d'une voiture (devoir) | Classification | `CLASSIFICATION/DEVOIR/Car_Data (1).csv` | Random Forest | `Venant_Occasion` : Venant, D'occasion |
 | 🚕 Prix d'un trajet de taxi | Régression | `REGRESSION/taxi_trip_pricing.csv` | Random Forest | `Trip_Price` ($) |
 | 🚗 Prix de vente d'une voiture (devoir) | Régression | `REGRESSION/DEVOIR/Car_dataset.csv` | Random Forest | `Selling_Price` |
 
@@ -34,7 +34,7 @@ Les modèles ont été entraînés dans les notebooks Google Colab de chaque dos
     │   └── DEVOIR/
     │       ├── Clas car data(1).ipynb
     │       ├── Car_Data (1).csv
-    │       └── dt_model.joblib, scaler.joblib, encoders.joblib, uniques.joblib
+    │       └── rf_model.joblib, scaler.joblib, encoders.joblib, uniques.joblib
     └── REGRESSION/
         ├── Reg_Mul_Reg_Ridge_Dec_Tree_Random_Forest.ipynb
         ├── taxi_trip_pricing.csv, sample_df.csv
@@ -88,26 +88,10 @@ Exemple prêt à l'emploi pour le taxi : `Machine Learning/REGRESSION/sample_df.
 | Modèle | Résultat |
 |---|---|
 | 📱 Téléphone | 90,3 % de bonnes prédictions |
-| 🚙 Provenance voiture | 81 % de bonnes prédictions |
+| 🚙 Provenance voiture | 84,8 % de bonnes prédictions |
 | 🚕 Taxi | erreur moyenne de 7,63 $ (prix moyen : 57,66 $) |
-| 🚗 Prix voiture | erreur moyenne de 1,74 million FCFA (prix moyen : 10,2 millions FCFA) |
+| 🚗 Prix voiture | erreur moyenne de 1,72 million FCFA (prix moyen : 10,2 millions FCFA) |
 
 Ces chiffres sont calculés sur tout le jeu de données, donc aussi sur les lignes vues pendant l'entraînement.
 Les scores sur les données de test se trouvent dans les notebooks.
 
-## Remarques sur les fichiers joblib
-
-Deux fichiers sauvegardés depuis les notebooks posent problème. `app.py` les contourne :
-
-- **Classification (téléphone et voiture)** : `encoders.joblib` est inutilisable. Le notebook réutilise le même `LabelEncoder` dans la boucle, donc tous les encodeurs sauvegardés ne connaissent que la cible.
-  `app.py` encode donc avec la position de la valeur dans `uniques.joblib`. C'est le même ordre alphabétique que `LabelEncoder`, donc le résultat est identique.
-  Pour corriger le notebook, il faut créer l'encodeur **dans** la boucle :
-  ```python
-  encoders = []
-  for col in cat_data.columns:
-      encoder = LabelEncoder()          # un nouvel encodeur par colonne
-      df[col] = encoder.fit_transform(df[col])
-      encoders.append(encoder)
-  ```
-- **Régression taxi** : `uniques.joblib` a été sauvegardé après l'encodage. Il contient donc `0, 1, 2…` au lieu des libellés.
-  `app.py` utilise à la place `encoder.classes_` de chaque encodeur.

@@ -38,11 +38,19 @@ st.markdown("""
 @st.cache_resource
 def load_objects(folder, model_file):
     d = ML / folder
-    encoders = joblib.load(d / 'encoders.joblib')
     model = joblib.load(d / model_file)
     uniques = joblib.load(d / 'uniques.joblib')
     scaler = joblib.load(d / 'scaler.joblib')
-    return encoders, model, uniques, scaler
+    return model, uniques, scaler
+
+
+# Encoder une valeur catégorielle : sa position dans uniques
+# (uniques est trié comme les classes d'un LabelEncoder, donc le code est identique ;
+#  on n'utilise pas encoders.joblib, mal sauvegardé dans certains dossiers)
+def encode(uniques, i, value):
+    if value not in uniques[i]:
+        raise ValueError(f"valeur inconnue « {value} »")
+    return uniques[i].index(value)
 
 
 # Exemple de CSV (5 premières lignes du jeu de données, sans la cible)
@@ -165,15 +173,13 @@ def tabs():
 # 1. CLASSIFICATION : état d'un téléphone
 # =====================================================================
 def page_telephone():
-    _, rf_model, uniques, scaler = load_objects('CLASSIFICATION', 'rf_model.joblib')
+    rf_model, uniques, scaler = load_objects('CLASSIFICATION', 'rf_model.joblib')
 
     # Vecteur normalisé
-    # (encoders.joblib contient 3 fois le même LabelEncoder, ajusté sur 'etat' :
-    #  on encode donc avec l'ordre trié de uniques, identique à celui du LabelEncoder)
     def to_x(prix, adresse, marque, dim_ecr, ram, stockage):
         # Encoder les valeurs des adresse et marque
-        adresse = uniques[0].index(adresse)
-        marque = uniques[1].index(marque)
+        adresse = encode(uniques, 0, adresse)
+        marque = encode(uniques, 1, marque)
         # vecteur des valeurs numériques
         x_new = np.array([prix, adresse, marque, dim_ecr, ram, stockage], dtype=float).reshape(1, -1)
         # Normaliser
@@ -217,16 +223,14 @@ def page_telephone():
 # 2. CLASSIFICATION / DEVOIR : voiture Venant ou D'occasion
 # =====================================================================
 def page_car_origin():
-    _, dt_model, uniques, scaler = load_objects('CLASSIFICATION/DEVOIR', 'dt_model.joblib')
+    rf_model, uniques, scaler = load_objects('CLASSIFICATION/DEVOIR', 'rf_model.joblib')
 
     # Vecteur normalisé
-    # (encoders.joblib contient 4 fois le même LabelEncoder, ajusté sur 'Venant_Occasion' :
-    #  on encode donc avec l'ordre trié de uniques, identique à celui du LabelEncoder)
     def to_x(Marque, Annee, Boite_Vitesse, Adresse, Prix):
         # Encoder les valeurs des Marque, Boite_Vitesse et Adresse
-        Marque = uniques[0].index(Marque)
-        Boite_Vitesse = uniques[1].index(Boite_Vitesse)
-        Adresse = uniques[2].index(Adresse)
+        Marque = encode(uniques, 0, Marque)
+        Boite_Vitesse = encode(uniques, 1, Boite_Vitesse)
+        Adresse = encode(uniques, 2, Adresse)
         # vecteur des valeurs numériques
         x_new = np.array([Marque, Annee, Boite_Vitesse, Adresse, Prix], dtype=float).reshape(1, -1)
         # Normaliser
@@ -235,10 +239,10 @@ def page_car_origin():
     # Fonction de prédiction
     def Pred_func(*args):
         # Prédire puis décoder la classe prédite
-        y_pred = dt_model.predict(to_x(*args))
+        y_pred = rf_model.predict(to_x(*args))
         return uniques[3][int(y_pred[0])]
 
-    header("🚙", "Provenance d'une voiture", "Classification · Decision Tree · Devoir",
+    header("🚙", "Provenance d'une voiture", "Classification · Random Forest · Devoir",
            """Prédit si une voiture est importée (« Venant ») ou d'occasion (« D'occasion ») à partir
            de sa marque, de l'année, de la boîte de vitesse, de l'adresse et du prix.""")
     tab1, tab2 = tabs()
@@ -257,7 +261,7 @@ def page_car_origin():
             submit = st.form_submit_button('Prédire', type='primary', width='stretch', icon=":material/bolt:")
         if submit:
             x = to_x(Marque, Annee, Boite_Vitesse, Adresse, Prix)
-            probas = dict(zip(uniques[3], dt_model.predict_proba(x)[0]))
+            probas = dict(zip(uniques[3], rf_model.predict_proba(x)[0]))
             show_class("Provenance prédite", Pred_func(Marque, Annee, Boite_Vitesse, Adresse, Prix), probas)
 
     with tab2:
@@ -270,18 +274,16 @@ def page_car_origin():
 # 3. REGRESSION : prix d'un trajet de taxi
 # =====================================================================
 def page_taxi():
-    encoders, rf_model, _, scaler = load_objects('REGRESSION', 'rf_model.joblib')
-    # uniques.joblib a été sauvegardé après l'encodage : on prend les classes des encodeurs
-    uniques = [enc.classes_.tolist() for enc in encoders]
+    rf_model, uniques, scaler = load_objects('REGRESSION', 'rf_model.joblib')
 
     # Fonction de prédiction
     def Pred_func(Trip_Distance_km, Time_of_Day, Day_of_Week, Passenger_Count, Traffic_Conditions,
                   Weather, Base_Fare, Per_Km_Rate, Per_Minute_Rate, Trip_Duration_Minutes):
         # Encoder les valeurs des Time_of_Day, Day_of_Week, Traffic_Conditions et Weather
-        Time_of_Day = encoders[0].transform([Time_of_Day])[0]
-        Day_of_Week = encoders[1].transform([Day_of_Week])[0]
-        Traffic_Conditions = encoders[2].transform([Traffic_Conditions])[0]
-        Weather = encoders[3].transform([Weather])[0]
+        Time_of_Day = encode(uniques, 0, Time_of_Day)
+        Day_of_Week = encode(uniques, 1, Day_of_Week)
+        Traffic_Conditions = encode(uniques, 2, Traffic_Conditions)
+        Weather = encode(uniques, 3, Weather)
         # vecteur des valeurs numériques
         x_new = np.array([Trip_Distance_km, Time_of_Day, Day_of_Week, Passenger_Count, Traffic_Conditions,
                           Weather, Base_Fare, Per_Km_Rate, Per_Minute_Rate, Trip_Duration_Minutes],
@@ -332,14 +334,14 @@ def page_taxi():
 # 4. REGRESSION / DEVOIR : prix de vente d'une voiture
 # =====================================================================
 def page_car_price():
-    encoders, rf_model, uniques, scaler = load_objects('REGRESSION/DEVOIR', 'rf_model.joblib')
+    rf_model, uniques, scaler = load_objects('REGRESSION/DEVOIR', 'rf_model.joblib')
 
     # Fonction de prédiction
     def Pred_func(Kms_Driven, Present_Price, Fuel_Type, Seller_Type, Transmission, Age):
         # Encoder les valeurs des Fuel_Type, Seller_Type et Transmission
-        Fuel_Type = encoders[0].transform([Fuel_Type])[0]
-        Seller_Type = encoders[1].transform([Seller_Type])[0]
-        Transmission = encoders[2].transform([Transmission])[0]
+        Fuel_Type = encode(uniques, 0, Fuel_Type)
+        Seller_Type = encode(uniques, 1, Seller_Type)
+        Transmission = encode(uniques, 2, Transmission)
         # vecteur des valeurs numériques
         x_new = np.array([Kms_Driven, Present_Price, Fuel_Type, Seller_Type, Transmission, Age],
                          dtype=float).reshape(1, -1)
@@ -382,7 +384,7 @@ def page_car_price():
 # =====================================================================
 PAGES = {
     "📱 État d'un téléphone": (page_telephone, "Classification · 90 % de bonnes prédictions"),
-    "🚙 Provenance d'une voiture": (page_car_origin, "Classification · Devoir · 81 %"),
+    "🚙 Provenance d'une voiture": (page_car_origin, "Classification · Devoir · 85 %"),
     "🚕 Prix d'un trajet en taxi": (page_taxi, "Régression · erreur moyenne 7,6 $"),
     "🚗 Prix de vente d'une voiture": (page_car_price, "Régression · Devoir · erreur moyenne 1,7 M FCFA"),
 }
