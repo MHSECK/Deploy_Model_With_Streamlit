@@ -1,0 +1,6 @@
+Trip_Distance_km,Time_of_Day,Day_of_Week,Passenger_Count,Traffic_Conditions,Weather,Base_Fare,Per_Km_Rate,Per_Minute_Rate,Trip_Duration_Minutes,Trip_Price
+19.35,Morning,Weekday,3.0,Low,Clear,3.56,0.8,0.32,53.82,36.2624
+36.87,Evening,Weekend,1.0,High,Clear,2.7,1.21,0.15,37.27,52.9032
+8.64,Afternoon,Weekend,2.0,Medium,Clear,2.55,1.71,0.48,89.33,60.2028
+9.91,Evening,Weekday,2.0,High,Clear,2.32,1.26,0.34,41.72,28.9914
+41.79,Night,Weekend,3.0,High,Clear,4.6,1.77,0.11,86.95,88.13279999999999
